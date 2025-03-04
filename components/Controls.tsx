@@ -204,6 +204,10 @@ export const Controls = () => {
 
   const handlePickupMode = () => {
     deactivateButton();
+    if (showTutorial && currentStep === 5) {
+      clearMessage();
+      stopAnimation();
+    }
     if (mode === 'pickup') {
       showExitPickupModeModal();
     } else if (buttonStates.pickupModeActive) {
