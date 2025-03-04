@@ -13,8 +13,10 @@ import { MarkerOptionsModal } from './MarkerOptionsModal';
 import { ConfirmModal } from './ConfirmModal';
 import { getMarkerColor } from '../utils/markerUtils';
 import { calculateWeightedMidpoint, calculateDistance } from '../utils/distanceUtils';
+import * as Location from 'expo-location';
 
-const BASE_ALTITUDE = 300;
+const BASE_ALTITUDE = 300;  // Used for target view
+const INITIAL_ALTITUDE = 1000;  // Higher altitude for initial map view
 const ALTITUDE_THRESHOLD = 475;
 const ALTITUDE_MULTIPLIER = 0.6;
 
@@ -81,6 +83,17 @@ export const Map = () => {
     }
   }, [throwData.rangeTarget, throwData.bearing]);
 
+  useEffect(() => {
+    if (throwData.userLocation && mapRef.current && mode === 'initial') {
+      mapRef.current.animateCamera({
+        center: throwData.userLocation,
+        altitude: INITIAL_ALTITUDE,
+        heading: 0,
+        pitch: 0,
+      }, { duration: 300 });
+    }
+  }, [throwData.userLocation, mode]);
+
   const handleMapPress = async (event: any) => {
     if (modals.markerOptions || modals.deleteConfirm) {
       return;
@@ -89,11 +102,25 @@ export const Map = () => {
     const { coordinate } = event.nativeEvent;
     
     if (mode === 'settingTarget') {
-      if (!throwData.userLocation) return;
-      setRangeTarget(coordinate, throwData.userLocation);
-      setTimeout(() => {
-        setMode('throwMarking');
-      }, 350);
+      try {
+        // Get fresh location when setting target
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Highest
+        });
+        
+        const currentLocation = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        };
+
+        setRangeTarget(coordinate, currentLocation);
+        setTimeout(() => {
+          setMode('throwMarking');
+        }, 350);
+      } catch (error) {
+        console.log('Error getting location when setting target:', error);
+        setInstructionMessage('Unable to get current location. Please try again.');
+      }
     } else if (mode === 'markingThrow') {
       if (selectedThrow !== null) {
         moveThrow(coordinate);
@@ -120,10 +147,10 @@ export const Map = () => {
         showsCompass={false}
         onPress={handleMapPress}
         initialRegion={{
-          latitude: throwData.userLocation?.latitude || 0,
-          longitude: throwData.userLocation?.longitude || 0,
-          latitudeDelta: 0.0022,
-          longitudeDelta: 0.0021,
+          latitude: 39.8283,
+          longitude: -98.5795,
+          latitudeDelta: 50,
+          longitudeDelta: 50,
         }}
       >
         {throwData.rangeTarget && (

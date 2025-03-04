@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, Dimensions, Animated } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, TouchableOpacity, Text, Dimensions, Animated, ActivityIndicator } from 'react-native';
 import * as Location from 'expo-location';
 import { useAppState } from '../context/AppStateContext';
 import { ConfirmModal } from './ConfirmModal';
@@ -12,6 +12,7 @@ export const Controls = () => {
   const { 
     buttonStates, 
     mode,
+    throwData,
     setMode,
     setInstructionMessage,
     setThrowData,
@@ -35,6 +36,7 @@ export const Controls = () => {
   const measurePickupMode = useMeasureComponent(5); // Last tutorial step
   const bounceAnim = React.useRef(new Animated.Value(1)).current;
   const AnimatedTouchable = React.useMemo(() => Animated.createAnimatedComponent(TouchableOpacity), []);
+  const [isSettingTargetLoading, setIsSettingTargetLoading] = useState(false);
 
   useEffect(() => {
     if (showTutorial && (currentStep === 0 || currentStep === 1 || currentStep === 2 || currentStep === 5)) {
@@ -72,7 +74,10 @@ export const Controls = () => {
   }, [showTutorial, currentStep]);
 
   const handleSetTarget = async () => {
+    if (isSettingTargetLoading) return; // Prevent multiple presses while loading
+    
     deactivateButton();
+    
     if (!buttonStates.isSettingTarget) {
       // If we're already in range set mode, toggle between throwMarking and settingTarget
       if (mode === 'settingTarget') {
@@ -82,23 +87,51 @@ export const Controls = () => {
         setMode('settingTarget');
         setInstructionMessage('Tap the map to select the target.');
       }
-    } else {
-      try {
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Highest
-        });
-        
-        const userLocation = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        };
-        
-        setThrowData({ userLocation });
-        setMode('settingTarget');
-        setInstructionMessage('Tap the map to select the target.');
-      } catch (error) {
-        console.log('Error getting location:', error);
+      return;
+    }
+
+    try {
+      setIsSettingTargetLoading(true);
+      
+      // Check location permissions first
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setInstructionMessage('Location permission is required to set a target.');
+        setIsSettingTargetLoading(false);
+        return;
       }
+
+      // Check if location services are enabled
+      const enabled = await Location.hasServicesEnabledAsync();
+      if (!enabled) {
+        setInstructionMessage('Please enable location services to set a target.');
+        setIsSettingTargetLoading(false);
+        return;
+      }
+
+      // Get a fresh location fix
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest
+      });
+      
+      const userLocation = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      };
+      
+      setThrowData({ 
+        ...throwData,
+        userLocation,
+        rangeTarget: null,
+        bearing: null
+      });
+      setMode('settingTarget');
+      setInstructionMessage('Tap the map to select the target.');
+    } catch (error) {
+      console.log('Error getting location:', error);
+      setInstructionMessage('Unable to get location. Please try again.');
+    } finally {
+      setIsSettingTargetLoading(false);
     }
   };
 
@@ -159,12 +192,16 @@ export const Controls = () => {
               }
             ]}
             onPress={handleSetTarget}
-            disabled={mode === 'settingTarget'}
+            disabled={mode === 'settingTarget' || isSettingTargetLoading}
             onLayout={measureSetTarget}
           >
-            <Text style={styles.buttonText}>
-              {buttonStates.isSettingTarget ? 'Set Target' : 'Reset Target'}
-            </Text>
+            {isSettingTargetLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {buttonStates.isSettingTarget ? 'Set Target' : 'Reset Target'}
+              </Text>
+            )}
           </AnimatedTouchable>
           
           <AnimatedTouchable 
