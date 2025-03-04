@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { calculateDistance, calculateBearing } from '../utils/distanceUtils';
 import { calculatePickupRoute, PickupRoute } from '../utils/pickupUtils';
+import { useTutorial } from './TutorialContext';
 
 // Types
 export type AppMode = 'initial' | 'settingTarget' | 'throwMarking' | 'markingThrow' | 'pickup';
@@ -139,6 +140,7 @@ const AppStateContext = createContext<AppStateContextType | undefined>(undefined
 export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>(initialState);
   const [feedbackQueue, setFeedbackQueue] = useState<string[][]>([]);
+  const { showTutorial, currentStep, nextStep } = useTutorial();
 
   useEffect(() => {
     if (feedbackQueue.length > 0) {
@@ -267,6 +269,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         target.latitude,
         target.longitude
       );
+
+      // If we're in tutorial mode and on step 0, advance to the next step
+      // since we've now actually set a target
+      if (showTutorial && currentStep === 0) {
+        setTimeout(() => nextStep(), 500); // Wait for map animation to complete
+      }
 
       return {
         ...prev,

@@ -31,50 +31,76 @@ export const Controls = () => {
     pickupModeStage,
     calculateThrowStats
   } = useAppState();
-  const { currentStep, showTutorial, deactivateButton } = useTutorial();
+  const { currentStep, showTutorial, deactivateButton, nextStep } = useTutorial();
   const measureSetTarget = useMeasureComponent(0);  // First tutorial step
   const measurePickupMode = useMeasureComponent(5); // Last tutorial step
   const bounceAnim = React.useRef(new Animated.Value(1)).current;
+  const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const AnimatedTouchable = React.useMemo(() => Animated.createAnimatedComponent(TouchableOpacity), []);
   const [isSettingTargetLoading, setIsSettingTargetLoading] = useState(false);
 
+  const stopAnimation = React.useCallback(() => {
+    if (animationRef.current) {
+      animationRef.current.stop();
+      animationRef.current = null;
+    }
+    bounceAnim.setValue(1);
+  }, [bounceAnim]);
+
+  const startAnimation = React.useCallback(() => {
+    stopAnimation();
+    
+    // Initial bounce - faster and more pronounced
+    Animated.sequence([
+      Animated.timing(bounceAnim, {
+        toValue: 1.3,  // Bigger initial bounce
+        duration: 150, // Faster
+        useNativeDriver: true,
+      }),
+      Animated.timing(bounceAnim, {
+        toValue: 1,
+        duration: 150, // Faster
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      // Start the continuous loop - faster cycle
+      animationRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, {
+            toValue: 1.15,  // Slightly bigger continuous bounce
+            duration: 400,  // Much faster
+            useNativeDriver: true,
+          }),
+          Animated.timing(bounceAnim, {
+            toValue: 1,
+            duration: 400,  // Much faster
+            useNativeDriver: true,
+          })
+        ])
+      );
+      animationRef.current.start();
+    });
+  }, [bounceAnim, stopAnimation]);
+
   useEffect(() => {
     if (showTutorial && (currentStep === 0 || currentStep === 1 || currentStep === 2 || currentStep === 5)) {
-      Animated.sequence([
-        Animated.timing(bounceAnim, {
-          toValue: 1.2,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bounceAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        })
-      ]).start(() => {
-        // Repeat the animation
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(bounceAnim, {
-              toValue: 1.1,
-              duration: 1000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(bounceAnim, {
-              toValue: 1,
-              duration: 1000,
-              useNativeDriver: true,
-            })
-          ])
-        ).start();
-      });
+      startAnimation();
     } else {
-      bounceAnim.setValue(1);
+      stopAnimation();
     }
-  }, [showTutorial, currentStep]);
+
+    return () => {
+      stopAnimation();
+    };
+  }, [showTutorial, currentStep, startAnimation, stopAnimation]);
 
   const handleSetTarget = async () => {
     if (isSettingTargetLoading) return; // Prevent multiple presses while loading
+    
+    // Stop animation if this is the current tutorial step
+    if (showTutorial && currentStep === 0) {
+      stopAnimation();
+    }
     
     deactivateButton();
     

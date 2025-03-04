@@ -11,6 +11,7 @@ import { PickupRoute } from './PickupRoute';
 import { ThrowFeedback } from './ThrowFeedback';
 import { MarkerOptionsModal } from './MarkerOptionsModal';
 import { ConfirmModal } from './ConfirmModal';
+import { TutorialMessage } from './TutorialMessage';
 import { getMarkerColor } from '../utils/markerUtils';
 import { calculateWeightedMidpoint, calculateDistance } from '../utils/distanceUtils';
 import * as Location from 'expo-location';
@@ -215,6 +216,7 @@ export const Map = () => {
           <PickupRoute route={pickupRoute.points} />
         )}
       </MapView>
+      <TutorialMessage />
       <ThrowFeedback messages={throwFeedback} />
       <MarkerOptionsModal
         visible={modals.markerOptions}
