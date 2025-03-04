@@ -83,8 +83,13 @@ export const Controls = () => {
   }, [bounceAnim, stopAnimation]);
 
   useEffect(() => {
-    if (showTutorial && (currentStep === 0 || currentStep === 1 || currentStep === 2 || currentStep === 5)) {
-      startAnimation();
+    // Start animation only for the current step's button
+    if (showTutorial) {
+      if (currentStep === 0 || currentStep === 1 || currentStep === 2 || currentStep === 5) {
+        startAnimation();
+      } else {
+        stopAnimation();
+      }
     } else {
       stopAnimation();
     }
@@ -93,6 +98,14 @@ export const Controls = () => {
       stopAnimation();
     };
   }, [showTutorial, currentStep, startAnimation, stopAnimation]);
+
+  // Add a separate effect to handle animation value reset
+  useEffect(() => {
+    if (!showTutorial || 
+        (currentStep !== 0 && currentStep !== 1 && currentStep !== 2 && currentStep !== 5)) {
+      bounceAnim.setValue(1);
+    }
+  }, [showTutorial, currentStep, bounceAnim]);
 
   const handleSetTarget = async () => {
     if (isSettingTargetLoading) return; // Prevent multiple presses while loading
