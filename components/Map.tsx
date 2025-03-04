@@ -8,6 +8,9 @@ import { TargetMarker } from './TargetMarker';
 import { UserLocationMarker } from './UserLocationMarker';
 import { RangeLines } from './RangeLines';
 import { PickupRoute } from './PickupRoute';
+import { ThrowFeedback } from './ThrowFeedback';
+import { MarkerOptionsModal } from './MarkerOptionsModal';
+import { ConfirmModal } from './ConfirmModal';
 import { getMarkerColor } from '../utils/markerUtils';
 import { calculateWeightedMidpoint, calculateDistance } from '../utils/distanceUtils';
 
@@ -31,6 +34,16 @@ export const Map = () => {
     addThrow,
     deleteSelectedThrow,
     clearSelectedThrow,
+    throwFeedback,
+    hideMarkerOptionsModal,
+    showMoveConfirmModal,
+    showDeleteConfirmModal,
+    setInstructionMessage,
+    hideMoveConfirmModal,
+    hideDeleteConfirmModal,
+    moveThrow,
+    confirmThrowPickup,
+    hidePickupConfirmModal,
   } = useAppState();
 
   const { showTutorial, currentStep } = useTutorial();
@@ -76,19 +89,21 @@ export const Map = () => {
     const { coordinate } = event.nativeEvent;
     
     if (mode === 'settingTarget') {
-      setRangeTarget(coordinate);
+      if (!throwData.userLocation) return;
+      setRangeTarget(coordinate, throwData.userLocation);
       setTimeout(() => {
         setMode('throwMarking');
       }, 350);
     } else if (mode === 'markingThrow') {
       if (selectedThrow !== null) {
-        deleteSelectedThrow();
-        addThrow(coordinate);
+        moveThrow(coordinate);
         clearSelectedThrow();
+        setMode('throwMarking');
       } else {
         addThrow(coordinate);
       }
       
+      setInstructionMessage(null);
       setTimeout(() => {
         setMode('throwMarking');
       }, 50);
@@ -173,6 +188,63 @@ export const Map = () => {
           <PickupRoute route={pickupRoute.points} />
         )}
       </MapView>
+      <ThrowFeedback messages={throwFeedback} />
+      <MarkerOptionsModal
+        visible={modals.markerOptions}
+        onClose={() => {
+          hideMarkerOptionsModal();
+          clearSelectedThrow();
+        }}
+        onMoveSelect={() => {
+          hideMarkerOptionsModal();
+          showMoveConfirmModal();
+        }}
+        onDeleteSelect={() => {
+          hideMarkerOptionsModal();
+          showDeleteConfirmModal();
+        }}
+      />
+      <ConfirmModal
+        visible={modals.moveConfirm}
+        onConfirm={() => {
+          hideMoveConfirmModal();
+          setMode('markingThrow');
+          setInstructionMessage('Tap the map where you want to move the marker.');
+        }}
+        onCancel={() => {
+          hideMoveConfirmModal();
+          clearSelectedThrow();
+        }}
+        message="Tap where you want to move the marker."
+        confirmText="Move"
+      />
+      <ConfirmModal
+        visible={modals.deleteConfirm}
+        onConfirm={() => {
+          deleteSelectedThrow();
+          hideDeleteConfirmModal();
+        }}
+        onCancel={() => {
+          hideDeleteConfirmModal();
+          clearSelectedThrow();
+        }}
+        message="Are you sure you want to remove this marker?"
+        confirmText="Remove"
+        confirmButtonColor="#e74c3c"
+      />
+      <ConfirmModal
+        visible={modals.pickupConfirm}
+        onConfirm={() => {
+          confirmThrowPickup();
+        }}
+        onCancel={() => {
+          hidePickupConfirmModal();
+          clearSelectedThrow();
+        }}
+        message="Confirm you've picked up this disc?"
+        confirmText="Picked Up"
+        confirmButtonColor="#27ae60"
+      />
     </View>
   );
 };

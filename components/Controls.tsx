@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import { useAppState } from '../context/AppStateContext';
 import { ConfirmModal } from './ConfirmModal';
 import { ExitPickupModeModal } from './ExitPickupModeModal';
+import { PickupModeModal } from './PickupModeModal';
 import { useMeasureComponent } from '../hooks/useMeasureComponent';
 import { useTutorial } from '../context/TutorialContext';
 
@@ -22,7 +23,12 @@ export const Controls = () => {
     modals,
     showExitPickupModeModal,
     hideExitPickupModeModal,
-    exitPickupMode
+    exitPickupMode,
+    hidePickupModeModal,
+    confirmPickupMode,
+    startPickupMode,
+    pickupModeStage,
+    calculateThrowStats
   } = useAppState();
   const { currentStep, showTutorial, deactivateButton } = useTutorial();
   const measureSetTarget = useMeasureComponent(0);  // First tutorial step
@@ -228,6 +234,13 @@ export const Controls = () => {
         visible={modals.exitPickupMode}
         onConfirm={exitPickupMode}
         onCancel={hideExitPickupModeModal}
+      />
+      <PickupModeModal
+        visible={modals.pickupMode}
+        onCancel={hidePickupModeModal}
+        onConfirm={pickupModeStage === 'confirmation' ? confirmPickupMode : startPickupMode}
+        stage={pickupModeStage || 'confirmation'}
+        stats={calculateThrowStats() || undefined}
       />
     </>
   );
