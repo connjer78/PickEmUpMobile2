@@ -1,20 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import { useTutorial } from '../context/TutorialContext';
-import { tutorialMessages } from '../context/TutorialContext';
-
-const { width } = Dimensions.get('window');
 
 export const TutorialMessage = () => {
-  const { showTutorial, currentStep } = useTutorial();
+  const { showTutorial, currentStep, tutorialSteps, showMessage } = useTutorial();
 
-  if (!showTutorial) return null;
+  if (!showTutorial || !tutorialSteps[currentStep]?.message || !showMessage) return null;
 
   return (
     <View style={styles.container}>
       <View style={styles.messageBox}>
-        <Text style={styles.message}>
-          {tutorialMessages[currentStep]}
+        <Text style={styles.messageText}>
+          {tutorialSteps[currentStep].message}
         </Text>
       </View>
     </View>
@@ -28,27 +25,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 2000,
+    zIndex: 1000,
   },
   messageBox: {
-    backgroundColor: 'rgba(44, 62, 80, 0.95)', // Dark blue with transparency
+    backgroundColor: 'rgba(52, 73, 94, 0.9)',
     padding: 15,
     borderRadius: 10,
-    maxWidth: width * 0.9,
-    minWidth: width * 0.7,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    maxWidth: '90%',
   },
-  message: {
+  messageText: {
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
-    fontWeight: '500',
   },
 }); 

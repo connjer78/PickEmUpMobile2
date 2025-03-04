@@ -411,6 +411,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setFeedbackQueue(queue => [...queue, feedbackMessages]);
       }
 
+      // If we're in tutorial mode and on step 1, advance to the next step
+      // since we've now actually marked a throw
+      if (showTutorial && currentStep === 1) {
+        setTimeout(() => nextStep(), 2500); // Wait for throw feedback messages to complete
+      }
+
       return {
         ...prev,
         throwData: {
