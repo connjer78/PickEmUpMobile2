@@ -15,7 +15,8 @@ import { getMarkerColor } from '../utils/markerUtils';
 import { calculateWeightedMidpoint, calculateDistance } from '../utils/distanceUtils';
 import * as Location from 'expo-location';
 
-const BASE_ALTITUDE = 300;
+const BASE_ALTITUDE = 300;  // Used for target view
+const INITIAL_ALTITUDE = 1000;  // Higher altitude for initial map view
 const ALTITUDE_THRESHOLD = 475;
 const ALTITUDE_MULTIPLIER = 0.6;
 
@@ -86,7 +87,7 @@ export const Map = () => {
     if (throwData.userLocation && mapRef.current && mode === 'initial') {
       mapRef.current.animateCamera({
         center: throwData.userLocation,
-        altitude: BASE_ALTITUDE,
+        altitude: INITIAL_ALTITUDE,
         heading: 0,
         pitch: 0,
       }, { duration: 300 });
