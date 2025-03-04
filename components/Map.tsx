@@ -8,6 +8,7 @@ import { TargetMarker } from './TargetMarker';
 import { UserLocationMarker } from './UserLocationMarker';
 import { RangeLines } from './RangeLines';
 import { PickupRoute } from './PickupRoute';
+import { ThrowFeedback } from './ThrowFeedback';
 import { getMarkerColor } from '../utils/markerUtils';
 import { calculateWeightedMidpoint, calculateDistance } from '../utils/distanceUtils';
 
@@ -31,6 +32,7 @@ export const Map = () => {
     addThrow,
     deleteSelectedThrow,
     clearSelectedThrow,
+    throwFeedback,
   } = useAppState();
 
   const { showTutorial, currentStep } = useTutorial();
@@ -76,7 +78,8 @@ export const Map = () => {
     const { coordinate } = event.nativeEvent;
     
     if (mode === 'settingTarget') {
-      setRangeTarget(coordinate);
+      if (!throwData.userLocation) return;
+      setRangeTarget(coordinate, throwData.userLocation);
       setTimeout(() => {
         setMode('throwMarking');
       }, 350);
@@ -173,6 +176,7 @@ export const Map = () => {
           <PickupRoute route={pickupRoute.points} />
         )}
       </MapView>
+      <ThrowFeedback messages={throwFeedback} />
     </View>
   );
 };
