@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import * as Location from 'expo-location';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -16,74 +16,98 @@ import { SplashScreen } from './components/SplashScreen';
 
 const TOAST_PADDING = 56; // Additional padding for toast to avoid button overlap
 
+const useLocationTracking = (shouldTrack: boolean, onLocationUpdate: (coords: { latitude: number; longitude: number }) => void) => {
+  const [subscription, setSubscription] = useState<Location.LocationSubscription | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const startTracking = async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.error('Permission to access location was denied');
+          return;
+        }
+
+        // Get initial location
+        let location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Highest
+        });
+        
+        if (isMounted && location?.coords) {
+          onLocationUpdate({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude
+          });
+        }
+
+        if (shouldTrack && isMounted) {
+          // Start watching location
+          const newSubscription = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Highest,
+              timeInterval: 1000,
+              distanceInterval: 1,
+            },
+            (newLocation) => {
+              if (newLocation?.coords) {
+                onLocationUpdate({
+                  latitude: newLocation.coords.latitude,
+                  longitude: newLocation.coords.longitude
+                });
+              }
+            }
+          );
+          setSubscription(newSubscription);
+        }
+      } catch (error) {
+        console.error('Error setting up location tracking:', error);
+      }
+    };
+
+    if (shouldTrack) {
+      startTracking();
+    } else if (subscription) {
+      subscription.remove();
+      setSubscription(null);
+    }
+
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        subscription.remove();
+      }
+    };
+  }, [shouldTrack, onLocationUpdate]);
+};
+
 const AppContent = () => {
-  const [showSplash, setShowSplash] = React.useState(true);
-  const [location, setLocation] = React.useState(null);
+  const [showSplash, setShowSplash] = useState(true);
+  const { 
+    mode,
+    updateUserLocationAndRoute,
+    instructionMessage
+  } = useAppState();
+  
   const { 
     isActive, 
     startTutorial 
   } = useTutorial();
+
+  const shouldTrackLocation = useMemo(() => {
+    return mode === 'initial' || mode === 'settingTarget' || mode === 'pickup';
+  }, [mode]);
+
+  useLocationTracking(shouldTrackLocation, updateUserLocationAndRoute);
   
-  const {
-    instructionMessage,
-    mode,
-    updateUserLocationAndRoute
-  } = useAppState();
-  
-  const [uiHeights, setUiHeights] = React.useState({
+  const [uiHeights, setUiHeights] = useState({
     header: 0,
     controls: 0,
     distanceInfo: 0
   });
   
   const toastPosition = uiHeights.header + uiHeights.controls;
-  
-  // Initialize and update location
-  React.useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.error('Permission to access location was denied');
-        return;
-      }
-
-      // Get initial location
-      let location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Highest
-      });
-      setLocation(location);
-      
-      if (location?.coords) {
-        updateUserLocationAndRoute({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        });
-      }
-
-      // Watch for location updates
-      const locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Highest,
-          timeInterval: 1000,    // Update every second
-          distanceInterval: 1,   // Update every meter
-        },
-        (newLocation) => {
-          setLocation(newLocation);
-          if (newLocation?.coords) {
-            updateUserLocationAndRoute({
-              latitude: newLocation.coords.latitude,
-              longitude: newLocation.coords.longitude
-            });
-          }
-        }
-      );
-
-      // Cleanup subscription
-      return () => {
-        locationSubscription.remove();
-      };
-    })();
-  }, [mode]); // Re-run when mode changes
   
   if (showSplash) {
     return (

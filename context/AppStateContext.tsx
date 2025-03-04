@@ -273,15 +273,21 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         throwData: {
           ...prev.throwData,
           rangeTarget: target,
-          userLocation: userLocation, // Always update to current GPS location
+          userLocation: userLocation,  // Always update to current GPS location
           range: distance,
           bearing: bearing,
+          // Clear any existing throws when setting a new target
+          throws: [],
+          lastThrow: null,
+          offCenter: null,
         },
         mode: 'throwMarking',
         buttonStates: {
           ...prev.buttonStates,
           isSettingTarget: false,
           markThrowActive: true,
+          resetThrowsActive: false,
+          pickupModeActive: false,
         },
         instructionMessage: null
       };
