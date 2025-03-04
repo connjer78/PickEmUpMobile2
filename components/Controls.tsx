@@ -85,7 +85,7 @@ export const Controls = () => {
   useEffect(() => {
     // Start animation only for the current step's button
     if (showTutorial) {
-      if (currentStep === 0 || currentStep === 1 || currentStep === 2 || currentStep === 5) {
+      if (currentStep === 0 || currentStep === 1 || currentStep === 5) {
         startAnimation();
       } else {
         stopAnimation();
@@ -102,7 +102,7 @@ export const Controls = () => {
   // Add a separate effect to handle animation value reset
   useEffect(() => {
     if (!showTutorial || 
-        (currentStep !== 0 && currentStep !== 1 && currentStep !== 2 && currentStep !== 5)) {
+        (currentStep !== 0 && currentStep !== 1 && currentStep !== 5)) {
       bounceAnim.setValue(1);
     }
   }, [showTutorial, currentStep, bounceAnim]);

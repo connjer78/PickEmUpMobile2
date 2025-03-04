@@ -1,11 +1,13 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { useTutorial } from '../context/TutorialContext';
 
 export const TutorialMessage = () => {
-  const { showTutorial, currentStep, tutorialSteps, showMessage } = useTutorial();
+  const { showTutorial, currentStep, tutorialSteps, showMessage, nextStep, clearMessage } = useTutorial();
 
   if (!showTutorial || !tutorialSteps[currentStep]?.message || !showMessage) return null;
+
+  const isInformationalStep = currentStep === 2;
 
   return (
     <View style={styles.container}>
@@ -13,6 +15,17 @@ export const TutorialMessage = () => {
         <Text style={styles.messageText}>
           {tutorialSteps[currentStep].message}
         </Text>
+        {isInformationalStep && (
+          <TouchableOpacity 
+            style={styles.nextButton}
+            onPress={() => {
+              clearMessage();
+              nextStep();
+            }}
+          >
+            <Text style={styles.nextButtonText}>Next</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -37,5 +50,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+  },
+  nextButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginTop: 12,
+    alignSelf: 'center',
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 }); 
