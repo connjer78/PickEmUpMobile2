@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native';
 import { useAppState } from '../context/AppStateContext';
 import { useMeasureComponent } from '../hooks/useMeasureComponent';
@@ -11,6 +11,14 @@ export const DistanceInfo: React.FC = () => {
   const measureDistanceInfo = useMeasureComponent(2);  // For tutorial step 2
   const bounceAnim = useRef(new Animated.Value(1)).current;
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  // Memoize the off-center angle calculation
+  const offCenterAngle = useMemo(() => {
+    if (throws.length === 0) return '--';
+    const lastThrow = throws[throws.length - 1];
+    const degreesOff = Math.abs(lastThrow.throwBearing - lastThrow.referenceBearing);
+    return `${degreesOff.toFixed(1)}°`;
+  }, [throws]);
 
   const stopAnimation = () => {
     if (animationRef.current) {
@@ -76,14 +84,6 @@ export const DistanceInfo: React.FC = () => {
     }
   };
 
-  // Get the degrees off center for the last throw
-  const getDegreesOffCenter = (): string => {
-    if (throws.length === 0) return '--';
-    const lastThrow = throws[throws.length - 1];
-    const degreesOff = Math.abs(lastThrow.throwBearing - lastThrow.referenceBearing);
-    return `${degreesOff.toFixed(1)}°`;
-  };
-
   return (
     <Animated.View 
       style={[
@@ -98,7 +98,7 @@ export const DistanceInfo: React.FC = () => {
       <View style={styles.distanceRow}>
         <Text style={styles.text}>Target: {formatDistance(range)}</Text>
         <Text style={styles.text}>Last Throw: {formatDistance(lastThrow)}</Text>
-        <Text style={styles.text}>Off Line: {getDegreesOffCenter()}</Text>
+        <Text style={styles.text}>Off Line: {offCenterAngle}</Text>
         <TouchableOpacity 
           style={styles.unitsToggle}
           onPress={toggleMetric}
