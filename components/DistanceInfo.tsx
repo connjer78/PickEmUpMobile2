@@ -6,7 +6,7 @@ import { useTutorial } from '../context/TutorialContext';
 
 export const DistanceInfo: React.FC = () => {
   const { isMetric, toggleMetric, throwData } = useAppState();
-  const { range, lastThrow, offCenter } = throwData;
+  const { range, lastThrow, throws } = throwData;
   const { showTutorial, currentStep } = useTutorial();
   const measureDistanceInfo = useMeasureComponent(2);  // For tutorial step 2
   const bounceAnim = useRef(new Animated.Value(1)).current;
@@ -76,6 +76,14 @@ export const DistanceInfo: React.FC = () => {
     }
   };
 
+  // Get the degrees off center for the last throw
+  const getDegreesOffCenter = (): string => {
+    if (throws.length === 0) return '--';
+    const lastThrow = throws[throws.length - 1];
+    const degreesOff = Math.abs(lastThrow.throwBearing - lastThrow.referenceBearing);
+    return `${degreesOff.toFixed(1)}°`;
+  };
+
   return (
     <Animated.View 
       style={[
@@ -90,7 +98,7 @@ export const DistanceInfo: React.FC = () => {
       <View style={styles.distanceRow}>
         <Text style={styles.text}>Target: {formatDistance(range)}</Text>
         <Text style={styles.text}>Last Throw: {formatDistance(lastThrow)}</Text>
-        <Text style={styles.text}>Off Center: {formatDistance(offCenter)}</Text>
+        <Text style={styles.text}>Off Line: {getDegreesOffCenter()}</Text>
         <TouchableOpacity 
           style={styles.unitsToggle}
           onPress={toggleMetric}
