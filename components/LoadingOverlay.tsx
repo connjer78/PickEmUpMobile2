@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Dimensions, Animated, Easing } from 'react-native';
+import YellowDisc from '../assets/yellow-disc.svg';
 
 interface LoadingOverlayProps {
   isVisible: boolean;
@@ -14,17 +15,49 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   message = 'Loading...', 
   showSpinner = true 
 }) => {
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const spinAnimation = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    // Reset the spin value and stop any existing animation
+    const cleanup = () => {
+      if (spinAnimation.current) {
+        spinAnimation.current.stop();
+        spinAnimation.current = null;
+      }
+      spinValue.setValue(0);
+    };
+
+    if (isVisible && showSpinner) {
+      cleanup(); // Clean up before starting new animation
+      spinAnimation.current = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      spinAnimation.current.start();
+    }
+
+    return cleanup;
+  }, [isVisible, showSpinner, spinValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
+
   if (!isVisible) return null;
 
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         {showSpinner && (
-          <ActivityIndicator 
-            size="large" 
-            color="#8e44ad"
-            style={styles.spinner}
-          />
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <YellowDisc width={100} height={100} />
+          </Animated.View>
         )}
         {message && (
           <Text style={styles.message}>{message}</Text>
@@ -55,13 +88,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     maxWidth: width * 0.8,
   },
-  spinner: {
-    marginBottom: 12,
-  },
   message: {
     color: '#ffffff',
     fontSize: 16,
     textAlign: 'center',
     fontWeight: '500',
+    marginTop: 12,
   },
 }); 
