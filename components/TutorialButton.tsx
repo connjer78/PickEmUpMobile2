@@ -5,9 +5,14 @@ import { useTutorial } from '../context/TutorialContext';
 const { width } = Dimensions.get('window');
 const QUARTER_WIDTH = width / 4;
 
-export const TutorialButton: React.FC = () => {
+interface TutorialButtonProps {
+  onPress: () => void;
+  isActive: boolean;
+}
+
+export const TutorialButton: React.FC<TutorialButtonProps> = ({ onPress, isActive }) => {
   const bounceAnim = useRef(new Animated.Value(0)).current;
-  const { showTutorial, startTutorial, endTutorial, isActive } = useTutorial();
+  const { showTutorial, startTutorial, endTutorial } = useTutorial();
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const stopAnimation = () => {
@@ -27,36 +32,31 @@ export const TutorialButton: React.FC = () => {
   };
 
   const startBounceAnimation = () => {
-    if (!isActive) return; // Don't start animation if not active
-    
-    stopAnimation();
-    
-    // Create and store the loop animation
-    animationRef.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bounceAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        })
-      ])
-    );
-    
-    animationRef.current.start();
+    if (!showTutorial && isActive) {
+      stopAnimation();
+      
+      // Create and store the loop animation
+      animationRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bounceAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          })
+        ])
+      );
+      
+      animationRef.current.start();
+    }
   };
 
   useEffect(() => {
-    if (!showTutorial && isActive) {
-      startBounceAnimation();
-    } else {
-      stopAnimation();
-      resetPosition();
-    }
+    startBounceAnimation();
 
     return () => {
       stopAnimation();
