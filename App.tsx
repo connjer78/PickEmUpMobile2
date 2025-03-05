@@ -14,7 +14,7 @@ import { LegendButton } from './components/LegendButton';
 import { TutorialButton } from './components/TutorialButton';
 import { SplashScreen } from './components/SplashScreen';
 
-const TOAST_PADDING = 56; // Additional padding for toast to avoid button overlap
+const TOAST_PADDING = 20;
 
 const useLocationTracking = (shouldTrack: boolean, onLocationUpdate: (coords: { latitude: number; longitude: number }) => void) => {
   const [subscription, setSubscription] = useState<Location.LocationSubscription | null>(null);
@@ -107,7 +107,7 @@ const AppContent = () => {
     distanceInfo: 0
   });
   
-  const toastPosition = uiHeights.header + uiHeights.controls;
+  const toastPosition = uiHeights.header + uiHeights.controls + uiHeights.distanceInfo;
   
   if (showSplash) {
     return (
