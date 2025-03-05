@@ -37,7 +37,6 @@ export const Controls = () => {
   const bounceAnim = React.useRef(new Animated.Value(1)).current;
   const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const AnimatedTouchable = React.useMemo(() => Animated.createAnimatedComponent(TouchableOpacity), []);
-  const [isSettingTargetLoading, setIsSettingTargetLoading] = useState(false);
 
   const stopAnimation = React.useCallback(() => {
     if (animationRef.current) {
@@ -108,14 +107,11 @@ export const Controls = () => {
   }, [showTutorial, currentStep, bounceAnim]);
 
   const handleSetTarget = async () => {
-    if (isSettingTargetLoading) return; // Prevent multiple presses while loading
-    
     // Clear tutorial message and stop animation if this is the current tutorial step
     if (showTutorial && currentStep === 0) {
       stopAnimation();
       clearMessage();
     } else if (!showTutorial) {
-      // If not in tutorial mode, deactivate the tutorial button
       deactivateFirstTime();
     }
     
@@ -134,13 +130,10 @@ export const Controls = () => {
     }
 
     try {
-      setIsSettingTargetLoading(true);
-      
       // Check location permissions first
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setInstructionMessage('Location permission is required to set a target.');
-        setIsSettingTargetLoading(false);
         return;
       }
 
@@ -148,7 +141,6 @@ export const Controls = () => {
       const enabled = await Location.hasServicesEnabledAsync();
       if (!enabled) {
         setInstructionMessage('Please enable location services to set a target.');
-        setIsSettingTargetLoading(false);
         return;
       }
 
@@ -173,8 +165,6 @@ export const Controls = () => {
     } catch (error) {
       console.log('Error getting location:', error);
       setInstructionMessage('Unable to get location. Please try again.');
-    } finally {
-      setIsSettingTargetLoading(false);
     }
   };
 
@@ -246,16 +236,12 @@ export const Controls = () => {
               }
             ]}
             onPress={handleSetTarget}
-            disabled={mode === 'settingTarget' || isSettingTargetLoading}
+            disabled={mode === 'settingTarget'}
             onLayout={measureSetTarget}
           >
-            {isSettingTargetLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {buttonStates.isSettingTarget ? 'Set Target' : 'Reset Target'}
-              </Text>
-            )}
+            <Text style={styles.buttonText}>
+              {buttonStates.isSettingTarget ? 'Set Target' : 'Reset Target'}
+            </Text>
           </AnimatedTouchable>
           
           <AnimatedTouchable 

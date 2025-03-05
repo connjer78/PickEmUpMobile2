@@ -195,7 +195,7 @@ const AppContent = () => {
   } = useTutorial();
 
   const shouldTrackLocation = useMemo(() => {
-    return mode === 'initial' || mode === 'settingTarget' || mode === 'pickup';
+    return mode === 'initial' || mode === 'pickup';
   }, [mode]);
 
   const { isWaitingForLocation, locationAccuracy } = useLocationTracking(shouldTrackLocation, updateUserLocationAndRoute);
