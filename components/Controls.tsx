@@ -31,7 +31,7 @@ export const Controls = () => {
     pickupModeStage,
     calculateThrowStats
   } = useAppState();
-  const { currentStep, showTutorial, deactivateButton, nextStep, clearMessage } = useTutorial();
+  const { currentStep, showTutorial, deactivateButton, nextStep, clearMessage, deactivateFirstTime } = useTutorial();
   const measureSetTarget = useMeasureComponent(0);  // First tutorial step
   const measurePickupMode = useMeasureComponent(5); // Last tutorial step
   const bounceAnim = React.useRef(new Animated.Value(1)).current;
@@ -114,6 +114,9 @@ export const Controls = () => {
     if (showTutorial && currentStep === 0) {
       stopAnimation();
       clearMessage();
+    } else if (!showTutorial) {
+      // If not in tutorial mode, deactivate the tutorial button
+      deactivateFirstTime();
     }
     
     deactivateButton();

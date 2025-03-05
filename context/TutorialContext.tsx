@@ -20,6 +20,7 @@ interface TutorialContextType {
   nextStep: () => void;
   clearMessage: () => void;
   deactivateButton: () => void;
+  deactivateFirstTime: () => void;
   tutorialSteps: TutorialStep[];
   updateTargetArea: (stepIndex: number, targetArea: TutorialStep['targetArea']) => void;
 }
@@ -72,6 +73,10 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsActive(false);
   }, []);
 
+  const deactivateFirstTime = useCallback(() => {
+    setIsActive(false);
+  }, []);
+
   const updateTargetArea = useCallback((stepIndex: number, targetArea: TutorialStep['targetArea']) => {
     setTutorialSteps(prev => prev.map((step, index) => 
       index === stepIndex ? { ...step, targetArea } : step
@@ -90,6 +95,7 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         nextStep,
         clearMessage,
         deactivateButton,
+        deactivateFirstTime,
         tutorialSteps,
         updateTargetArea,
       }}

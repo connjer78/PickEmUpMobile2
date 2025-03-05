@@ -5,40 +5,72 @@ import { useTutorial } from '../context/TutorialContext';
 const { width } = Dimensions.get('window');
 const QUARTER_WIDTH = width / 4;
 
-interface TutorialButtonProps {
-  onPress: () => void;
-  isActive: boolean;
-}
-
-export const TutorialButton: React.FC<TutorialButtonProps> = ({ isActive }) => {
+export const TutorialButton: React.FC = () => {
   const bounceAnim = useRef(new Animated.Value(0)).current;
-  const { showTutorial, startTutorial, endTutorial } = useTutorial();
+  const { showTutorial, startTutorial, endTutorial, isActive } = useTutorial();
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const stopAnimation = () => {
+    if (animationRef.current) {
+      animationRef.current.stop();
+      animationRef.current = null;
+    }
+  };
+
+  const resetPosition = () => {
+    // Smoothly animate back to the base position
+    Animated.timing(bounceAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const startBounceAnimation = () => {
+    if (!isActive) return; // Don't start animation if not active
+    
+    stopAnimation();
+    
+    // Create and store the loop animation
+    animationRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        })
+      ])
+    );
+    
+    animationRef.current.start();
+  };
 
   useEffect(() => {
-    if (isActive) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(bounceAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-          Animated.timing(bounceAnim, {
-            toValue: 0,
-            duration: 600,
-            useNativeDriver: true,
-          })
-        ])
-      ).start();
+    if (!showTutorial && isActive) {
+      startBounceAnimation();
     } else {
-      bounceAnim.setValue(0);
+      stopAnimation();
+      resetPosition();
     }
-  }, [isActive]);
+
+    return () => {
+      stopAnimation();
+      resetPosition();
+    };
+  }, [showTutorial, isActive]);
 
   const handlePress = () => {
     if (showTutorial) {
       endTutorial();
+      resetPosition();
     } else {
+      stopAnimation();
+      resetPosition();
       startTutorial();
     }
   };
