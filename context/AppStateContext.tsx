@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { calculateDistance, calculateBearing } from '../utils/distanceUtils';
 import { calculatePickupRoute, PickupRoute } from '../utils/pickupUtils';
+import { useTutorial } from './TutorialContext';
 
 // Types
 export type AppMode = 'initial' | 'settingTarget' | 'throwMarking' | 'markingThrow' | 'pickup';
@@ -136,9 +137,17 @@ const initialState: AppState = {
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
 
+// Add near the top with other constants
+const LOCATION_UPDATE_THRESHOLD = 1; // meters
+const DEBOUNCE_DELAY = 500; // milliseconds
+
 export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>(initialState);
   const [feedbackQueue, setFeedbackQueue] = useState<string[][]>([]);
+  const { showTutorial, currentStep, nextStep } = useTutorial();
+
+  const locationUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastLocationRef = useRef<Coordinates | null>(null);
 
   useEffect(() => {
     if (feedbackQueue.length > 0) {
@@ -267,6 +276,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         target.latitude,
         target.longitude
       );
+
+      // If we're in tutorial mode and on step 0, advance to the next step
+      // since we've now actually set a target
+      if (showTutorial && currentStep === 0) {
+        setTimeout(() => nextStep(), 500); // Wait for map animation to complete
+      }
 
       return {
         ...prev,
@@ -401,6 +416,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Add messages to queue if there are any
       if (feedbackMessages.length > 0) {
         setFeedbackQueue(queue => [...queue, feedbackMessages]);
+      }
+
+      // If we're in tutorial mode and on step 1, advance to the next step
+      // since we've now actually marked a throw
+      if (showTutorial && currentStep === 1) {
+        nextStep();  // Advance immediately without waiting
       }
 
       return {
@@ -774,32 +795,68 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }));
   };
 
-  const updateUserLocationAndRoute = (userLocation: Coordinates) => {
-    setState(prev => {
-      if (prev.mode === 'pickup' && prev.throwData.throws.length > 0) {
-        const newRoute = calculatePickupRoute(
-          userLocation,
-          prev.throwData.throws,
-          []
+  const updateUserLocationAndRoute = useCallback((userLocation: Coordinates) => {
+    // Clear any pending timeout
+    if (locationUpdateTimeoutRef.current) {
+      clearTimeout(locationUpdateTimeoutRef.current);
+    }
+
+    // Debounce the update
+    locationUpdateTimeoutRef.current = setTimeout(() => {
+      // Check if location has changed significantly
+      if (lastLocationRef.current) {
+        const distance = calculateDistance(
+          lastLocationRef.current.latitude,
+          lastLocationRef.current.longitude,
+          userLocation.latitude,
+          userLocation.longitude,
+          false
         );
+
+        // Skip update if movement is below threshold
+        if (distance < LOCATION_UPDATE_THRESHOLD) {
+          return;
+        }
+      }
+
+      // Update last location
+      lastLocationRef.current = userLocation;
+
+      setState(prev => {
+        if (prev.mode === 'pickup' && prev.throwData.throws.length > 0) {
+          const newRoute = calculatePickupRoute(
+            userLocation,
+            prev.throwData.throws,
+            []
+          );
+          return {
+            ...prev,
+            throwData: {
+              ...prev.throwData,
+              userLocation
+            },
+            pickupRoute: newRoute
+          };
+        }
         return {
           ...prev,
           throwData: {
             ...prev.throwData,
             userLocation
-          },
-          pickupRoute: newRoute
+          }
         };
+      });
+    }, DEBOUNCE_DELAY);
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (locationUpdateTimeoutRef.current) {
+        clearTimeout(locationUpdateTimeoutRef.current);
       }
-      return {
-        ...prev,
-        throwData: {
-          ...prev.throwData,
-          userLocation
-        }
-      };
-    });
-  };
+    };
+  }, []);
 
   return (
     <AppStateContext.Provider value={{

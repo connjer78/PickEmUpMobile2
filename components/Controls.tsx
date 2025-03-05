@@ -31,50 +31,89 @@ export const Controls = () => {
     pickupModeStage,
     calculateThrowStats
   } = useAppState();
-  const { currentStep, showTutorial, deactivateButton } = useTutorial();
+  const { currentStep, showTutorial, deactivateButton, nextStep, clearMessage, deactivateFirstTime } = useTutorial();
   const measureSetTarget = useMeasureComponent(0);  // First tutorial step
   const measurePickupMode = useMeasureComponent(5); // Last tutorial step
   const bounceAnim = React.useRef(new Animated.Value(1)).current;
+  const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const AnimatedTouchable = React.useMemo(() => Animated.createAnimatedComponent(TouchableOpacity), []);
-  const [isSettingTargetLoading, setIsSettingTargetLoading] = useState(false);
+
+  const stopAnimation = React.useCallback(() => {
+    if (animationRef.current) {
+      animationRef.current.stop();
+      animationRef.current = null;
+    }
+    bounceAnim.setValue(1);
+  }, [bounceAnim]);
+
+  const startAnimation = React.useCallback(() => {
+    stopAnimation();
+    
+    // Initial bounce - faster and more pronounced
+    Animated.sequence([
+      Animated.timing(bounceAnim, {
+        toValue: 1.3,  // Bigger initial bounce
+        duration: 150, // Faster
+        useNativeDriver: true,
+      }),
+      Animated.timing(bounceAnim, {
+        toValue: 1,
+        duration: 150, // Faster
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      // Start the continuous loop - faster cycle
+      animationRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, {
+            toValue: 1.15,  // Slightly bigger continuous bounce
+            duration: 400,  // Much faster
+            useNativeDriver: true,
+          }),
+          Animated.timing(bounceAnim, {
+            toValue: 1,
+            duration: 400,  // Much faster
+            useNativeDriver: true,
+          })
+        ])
+      );
+      animationRef.current.start();
+    });
+  }, [bounceAnim, stopAnimation]);
 
   useEffect(() => {
-    if (showTutorial && (currentStep === 0 || currentStep === 1 || currentStep === 2 || currentStep === 5)) {
-      Animated.sequence([
-        Animated.timing(bounceAnim, {
-          toValue: 1.2,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bounceAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        })
-      ]).start(() => {
-        // Repeat the animation
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(bounceAnim, {
-              toValue: 1.1,
-              duration: 1000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(bounceAnim, {
-              toValue: 1,
-              duration: 1000,
-              useNativeDriver: true,
-            })
-          ])
-        ).start();
-      });
+    // Start animation only for the current step's button
+    if (showTutorial) {
+      if (currentStep === 0 || currentStep === 1 || currentStep === 5) {
+        startAnimation();
+      } else {
+        stopAnimation();
+      }
     } else {
+      stopAnimation();
+    }
+
+    return () => {
+      stopAnimation();
+    };
+  }, [showTutorial, currentStep, startAnimation, stopAnimation]);
+
+  // Add a separate effect to handle animation value reset
+  useEffect(() => {
+    if (!showTutorial || 
+        (currentStep !== 0 && currentStep !== 1 && currentStep !== 5)) {
       bounceAnim.setValue(1);
     }
-  }, [showTutorial, currentStep]);
+  }, [showTutorial, currentStep, bounceAnim]);
 
   const handleSetTarget = async () => {
-    if (isSettingTargetLoading) return; // Prevent multiple presses while loading
+    // Clear tutorial message and stop animation if this is the current tutorial step
+    if (showTutorial && currentStep === 0) {
+      stopAnimation();
+      clearMessage();
+    } else if (!showTutorial) {
+      deactivateFirstTime();
+    }
     
     deactivateButton();
     
@@ -91,13 +130,10 @@ export const Controls = () => {
     }
 
     try {
-      setIsSettingTargetLoading(true);
-      
       // Check location permissions first
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setInstructionMessage('Location permission is required to set a target.');
-        setIsSettingTargetLoading(false);
         return;
       }
 
@@ -105,7 +141,6 @@ export const Controls = () => {
       const enabled = await Location.hasServicesEnabledAsync();
       if (!enabled) {
         setInstructionMessage('Please enable location services to set a target.');
-        setIsSettingTargetLoading(false);
         return;
       }
 
@@ -130,13 +165,18 @@ export const Controls = () => {
     } catch (error) {
       console.log('Error getting location:', error);
       setInstructionMessage('Unable to get location. Please try again.');
-    } finally {
-      setIsSettingTargetLoading(false);
     }
   };
 
   const handleMarkThrow = () => {
     deactivateButton();
+    
+    // Clear tutorial message and stop animation if this is the current tutorial step
+    if (showTutorial && currentStep === 1) {
+      stopAnimation();
+      clearMessage();
+    }
+    
     if (buttonStates.markThrowActive) {
       setMode('markingThrow');
       setInstructionMessage('Tap the map where your throw landed.');
@@ -157,6 +197,10 @@ export const Controls = () => {
 
   const handlePickupMode = () => {
     deactivateButton();
+    if (showTutorial && currentStep === 5) {
+      clearMessage();
+      stopAnimation();
+    }
     if (mode === 'pickup') {
       showExitPickupModeModal();
     } else if (buttonStates.pickupModeActive) {
@@ -192,16 +236,12 @@ export const Controls = () => {
               }
             ]}
             onPress={handleSetTarget}
-            disabled={mode === 'settingTarget' || isSettingTargetLoading}
+            disabled={mode === 'settingTarget'}
             onLayout={measureSetTarget}
           >
-            {isSettingTargetLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {buttonStates.isSettingTarget ? 'Set Target' : 'Reset Target'}
-              </Text>
-            )}
+            <Text style={styles.buttonText}>
+              {buttonStates.isSettingTarget ? 'Set Target' : 'Reset Target'}
+            </Text>
           </AnimatedTouchable>
           
           <AnimatedTouchable 

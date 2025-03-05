@@ -14,10 +14,13 @@ interface TutorialContextType {
   isActive: boolean;
   currentStep: number;
   showTutorial: boolean;
+  showMessage: boolean;
   startTutorial: () => void;
   endTutorial: () => void;
   nextStep: () => void;
+  clearMessage: () => void;
   deactivateButton: () => void;
+  deactivateFirstTime: () => void;
   tutorialSteps: TutorialStep[];
   updateTargetArea: (stepIndex: number, targetArea: TutorialStep['targetArea']) => void;
 }
@@ -37,6 +40,7 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isActive, setIsActive] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [showMessage, setShowMessage] = useState(true);
   const [tutorialSteps, setTutorialSteps] = useState<TutorialStep[]>(
     tutorialMessages.map(message => ({
       message,
@@ -47,18 +51,29 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const startTutorial = useCallback(() => {
     setShowTutorial(true);
     setIsActive(false);
+    setShowMessage(true);
   }, []);
 
   const endTutorial = useCallback(() => {
     setShowTutorial(false);
     setCurrentStep(0);
+    setShowMessage(true);
   }, []);
 
   const nextStep = useCallback(() => {
     setCurrentStep(prev => prev + 1);
+    setShowMessage(true);
+  }, []);
+
+  const clearMessage = useCallback(() => {
+    setShowMessage(false);
   }, []);
 
   const deactivateButton = useCallback(() => {
+    setIsActive(false);
+  }, []);
+
+  const deactivateFirstTime = useCallback(() => {
     setIsActive(false);
   }, []);
 
@@ -74,10 +89,13 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isActive,
         showTutorial,
         currentStep,
+        showMessage,
         startTutorial,
         endTutorial,
         nextStep,
+        clearMessage,
         deactivateButton,
+        deactivateFirstTime,
         tutorialSteps,
         updateTargetArea,
       }}

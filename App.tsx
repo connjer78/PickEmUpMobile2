@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import * as Location from 'expo-location';
-import { StyleSheet, View, Dimensions } from 'react-native';
+import { StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AppStateProvider, useAppState } from './context/AppStateContext';
 import { TutorialProvider, useTutorial } from './context/TutorialContext';
@@ -13,17 +13,109 @@ import { StatsButton } from './components/StatsButton';
 import { LegendButton } from './components/LegendButton';
 import { TutorialButton } from './components/TutorialButton';
 import { SplashScreen } from './components/SplashScreen';
+import { LoadingOverlay } from './components/LoadingOverlay';
+import { TouchableOpacity, Text } from 'react-native';
 
-const TOAST_PADDING = 56; // Additional padding for toast to avoid button overlap
+const TOAST_PADDING = 20;
+
+const MOCK_LOCATIONS = {
+  ACCURATE: {
+    coords: {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      accuracy: 5,
+    },
+    timestamp: Date.now(),
+  },
+  POOR_ACCURACY: {
+    coords: {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      accuracy: 65,
+    },
+    timestamp: Date.now(),
+  },
+  NO_SIGNAL: null,
+};
+
+const useGPSSimulation = (
+  onLocationUpdate: (coords: { latitude: number; longitude: number }) => void
+) => {
+  const [isWaitingForLocation, setIsWaitingForLocation] = useState(true);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Store the real location when we get it
+  useEffect(() => {
+    const getCurrentLocation = async () => {
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Highest
+        });
+        if (location?.coords) {
+          setCurrentLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude
+          });
+        }
+      } catch (error) {
+        console.error('Error getting initial location for simulation:', error);
+      }
+    };
+    getCurrentLocation();
+  }, []);
+
+  const simulateGPSCondition = async (condition: 'ACCURATE' | 'POOR_ACCURACY' | 'NO_SIGNAL') => {
+    if (!__DEV__) return;
+    
+    if (condition === 'NO_SIGNAL') {
+      setIsWaitingForLocation(true);
+      setLocationAccuracy(null);
+      return;
+    }
+
+    // Use current location or keep the last known location
+    const baseLocation = currentLocation || {
+      latitude: 0,
+      longitude: 0
+    };
+
+    const mockLocation = {
+      coords: {
+        ...baseLocation,
+        accuracy: condition === 'ACCURATE' ? 5 : 65,
+      },
+      timestamp: Date.now(),
+    };
+
+    onLocationUpdate({
+      latitude: mockLocation.coords.latitude,
+      longitude: mockLocation.coords.longitude,
+    });
+    setLocationAccuracy(mockLocation.coords.accuracy);
+    setIsWaitingForLocation(false);
+  };
+
+  return {
+    isWaitingForLocation,
+    locationAccuracy,
+    simulateGPSCondition,
+    setIsWaitingForLocation,
+    setLocationAccuracy
+  };
+};
 
 const useLocationTracking = (shouldTrack: boolean, onLocationUpdate: (coords: { latitude: number; longitude: number }) => void) => {
   const [subscription, setSubscription] = useState<Location.LocationSubscription | null>(null);
+  const [isWaitingForLocation, setIsWaitingForLocation] = useState(true);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const startTracking = async () => {
       try {
+        setIsWaitingForLocation(true);
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           console.error('Permission to access location was denied');
@@ -40,6 +132,8 @@ const useLocationTracking = (shouldTrack: boolean, onLocationUpdate: (coords: { 
             latitude: location.coords.latitude,
             longitude: location.coords.longitude
           });
+          setLocationAccuracy(location.coords.accuracy);
+          setIsWaitingForLocation(false);
         }
 
         if (shouldTrack && isMounted) {
@@ -56,6 +150,8 @@ const useLocationTracking = (shouldTrack: boolean, onLocationUpdate: (coords: { 
                   latitude: newLocation.coords.latitude,
                   longitude: newLocation.coords.longitude
                 });
+                setLocationAccuracy(newLocation.coords.accuracy);
+                setIsWaitingForLocation(false);
               }
             }
           );
@@ -63,6 +159,7 @@ const useLocationTracking = (shouldTrack: boolean, onLocationUpdate: (coords: { 
         }
       } catch (error) {
         console.error('Error setting up location tracking:', error);
+        setIsWaitingForLocation(false);
       }
     };
 
@@ -80,6 +177,8 @@ const useLocationTracking = (shouldTrack: boolean, onLocationUpdate: (coords: { 
       }
     };
   }, [shouldTrack, onLocationUpdate]);
+
+  return { isWaitingForLocation, locationAccuracy };
 };
 
 const AppContent = () => {
@@ -96,10 +195,10 @@ const AppContent = () => {
   } = useTutorial();
 
   const shouldTrackLocation = useMemo(() => {
-    return mode === 'initial' || mode === 'settingTarget' || mode === 'pickup';
+    return mode === 'initial' || mode === 'pickup';
   }, [mode]);
 
-  useLocationTracking(shouldTrackLocation, updateUserLocationAndRoute);
+  const { isWaitingForLocation, locationAccuracy } = useLocationTracking(shouldTrackLocation, updateUserLocationAndRoute);
   
   const [uiHeights, setUiHeights] = useState({
     header: 0,
@@ -107,7 +206,13 @@ const AppContent = () => {
     distanceInfo: 0
   });
   
-  const toastPosition = uiHeights.header + uiHeights.controls;
+  const toastPosition = uiHeights.header + uiHeights.controls + uiHeights.distanceInfo;
+
+  const getLoadingMessage = () => {
+    if (!locationAccuracy) return 'Waiting for GPS signal...';
+    if (locationAccuracy > 20) return `Improving GPS accuracy (${Math.round(locationAccuracy)}m)...`;
+    return `GPS accuracy: ${Math.round(locationAccuracy)}m`;
+  };
   
   if (showSplash) {
     return (
@@ -159,6 +264,10 @@ const AppContent = () => {
         <LegendButton />
       </View>
       <TutorialButton onPress={startTutorial} isActive={isActive} />
+      <LoadingOverlay 
+        isVisible={isWaitingForLocation}
+        message={getLoadingMessage()}
+      />
     </View>
   );
 };

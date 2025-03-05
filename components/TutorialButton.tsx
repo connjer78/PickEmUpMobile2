@@ -10,13 +10,33 @@ interface TutorialButtonProps {
   isActive: boolean;
 }
 
-export const TutorialButton: React.FC<TutorialButtonProps> = ({ isActive }) => {
+export const TutorialButton: React.FC<TutorialButtonProps> = ({ onPress, isActive }) => {
   const bounceAnim = useRef(new Animated.Value(0)).current;
   const { showTutorial, startTutorial, endTutorial } = useTutorial();
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  useEffect(() => {
-    if (isActive) {
-      Animated.loop(
+  const stopAnimation = () => {
+    if (animationRef.current) {
+      animationRef.current.stop();
+      animationRef.current = null;
+    }
+  };
+
+  const resetPosition = () => {
+    // Smoothly animate back to the base position
+    Animated.timing(bounceAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const startBounceAnimation = () => {
+    if (!showTutorial && isActive) {
+      stopAnimation();
+      
+      // Create and store the loop animation
+      animationRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(bounceAnim, {
             toValue: 1,
@@ -29,16 +49,28 @@ export const TutorialButton: React.FC<TutorialButtonProps> = ({ isActive }) => {
             useNativeDriver: true,
           })
         ])
-      ).start();
-    } else {
-      bounceAnim.setValue(0);
+      );
+      
+      animationRef.current.start();
     }
-  }, [isActive]);
+  };
+
+  useEffect(() => {
+    startBounceAnimation();
+
+    return () => {
+      stopAnimation();
+      resetPosition();
+    };
+  }, [showTutorial, isActive]);
 
   const handlePress = () => {
     if (showTutorial) {
       endTutorial();
+      resetPosition();
     } else {
+      stopAnimation();
+      resetPosition();
       startTutorial();
     }
   };

@@ -26,31 +26,22 @@ const findNearestThrow = (
 
   if (availableThrows.length === 0) return null;
 
-  let nearestThrow = availableThrows[0];
-  let minDistance = calculateDistance(
-    point.latitude,
-    point.longitude,
-    nearestThrow.latitude,
-    nearestThrow.longitude,
-    false
-  );
-
-  for (const t of availableThrows.slice(1)) {
-    const distance = calculateDistance(
+  // Calculate distances once and store them
+  const throwDistances = availableThrows.map(t => ({
+    throw: t,
+    distance: calculateDistance(
       point.latitude,
       point.longitude,
       t.latitude,
       t.longitude,
       false
-    );
+    )
+  }));
 
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearestThrow = t;
-    }
-  }
-
-  return nearestThrow;
+  // Find the minimum distance throw
+  return throwDistances.reduce((min, curr) => 
+    curr.distance < min.distance ? curr : min
+  ).throw;
 };
 
 // Check if a path between two points would cross any existing path segments
@@ -101,6 +92,19 @@ export const calculatePickupRoute = (
   throws: Throw[],
   collectedThrows: Throw[] = []
 ): PickupRoute => {
+  // Early return if no throws
+  if (throws.length === 0) {
+    return {
+      points: [{
+        ...currentLocation,
+        id: 'current',
+        isThrow: false
+      }],
+      remainingThrows: [],
+      collectedThrows
+    };
+  }
+
   const route: RoutePoint[] = [{
     ...currentLocation,
     id: 'current',
@@ -110,32 +114,41 @@ export const calculatePickupRoute = (
   const remainingThrows = [...throws];
   let currentPoint = currentLocation;
 
+  // Pre-calculate distances for initial point
+  let throwDistances = remainingThrows.map(t => ({
+    throw: t,
+    distance: calculateDistance(
+      currentPoint.latitude,
+      currentPoint.longitude,
+      t.latitude,
+      t.longitude,
+      false
+    )
+  }));
+
   while (remainingThrows.length > 0) {
     // Find nearest throw that won't create crossing paths
     let bestThrow: Throw | null = null;
     let minDistance = Infinity;
 
-    for (const t of remainingThrows) {
-      if (collectedThrows.some(ct => ct.id === t.id)) continue;
+    // Sort throws by distance to optimize path finding
+    throwDistances.sort((a, b) => a.distance - b.distance);
 
-      const distance = calculateDistance(
-        currentPoint.latitude,
-        currentPoint.longitude,
-        t.latitude,
-        t.longitude,
-        false
-      );
+    // Check throws in order of distance
+    for (const {throw: t, distance} of throwDistances) {
+      if (collectedThrows.some(ct => ct.id === t.id)) continue;
 
       // Check if this path would cross any existing paths
       if (!wouldCrossPath(currentPoint, t, route) && distance < minDistance) {
         minDistance = distance;
         bestThrow = t;
+        break; // Take the first valid throw we find
       }
     }
 
     // If we couldn't find a throw without crossing paths, just take the nearest
     if (!bestThrow) {
-      bestThrow = findNearestThrow(currentPoint, remainingThrows, collectedThrows);
+      bestThrow = throwDistances[0].throw;
     }
 
     if (!bestThrow) break;
@@ -150,6 +163,18 @@ export const calculatePickupRoute = (
     currentPoint = bestThrow;
     const index = remainingThrows.findIndex(t => t.id === bestThrow!.id);
     remainingThrows.splice(index, 1);
+
+    // Update distances from new current point for remaining throws
+    throwDistances = remainingThrows.map(t => ({
+      throw: t,
+      distance: calculateDistance(
+        currentPoint.latitude,
+        currentPoint.longitude,
+        t.latitude,
+        t.longitude,
+        false
+      )
+    }));
   }
 
   return {
