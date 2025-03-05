@@ -419,12 +419,11 @@ const styles = StyleSheet.create({
   },
   logotype: {
     position: 'absolute',
-    top: height * 0.2,
+    top: height * 0.15,
     left: width * 0.1,
     width: width * 0.8,
-    height: width * 0.25,
     alignItems: 'center',
-    justifyContent: 'center',
+    height: width * 0.5,
   },
   overlayContainer: {
     position: 'absolute',
